@@ -1,0 +1,227 @@
+# Schema trích xuất CTKM -> JSON.
+#
+# Toàn bộ tri thức về "mẫu bảng" nằm ở file này, KHÔNG nằm trong code:
+#   * aliases     : các cách viết header/nhãn có thể gặp (khác mẫu, khác thứ tự cột
+#                   vẫn nhận được).
+#   * parser      : tên hàm trong ctkm_extractor/extraction/field_parsers.py.
+#   * parser_args : tham số truyền cho parser đó.
+#   * regex       : danh sách pattern fallback dò trực tiếp trên raw text blob khi
+#                   không dựng được bảng hoặc không tìm thấy nhãn trong bảng.
+#                   Pattern được so khớp trên bản text ĐÃ BỎ DẤU (giữ nguyên độ
+#                   dài), nên hãy viết pattern không dấu; giá trị trả về vẫn được
+#                   cắt từ text gốc còn dấu.
+#
+# Thêm một field mới hoặc hỗ trợ một mẫu CTKM khác = sửa file này, không sửa code.
+
+version: 1
+
+settings:
+  # Số hàng đầu bảng được coi là vùng header khi bảng nằm ngang (header trên cùng).
+  header_rows: 3
+  # Ngưỡng tương đồng tối thiểu (0..1) khi so khớp nhãn bằng fuzzy matching.
+  min_similarity: 0.82
+  # Số ô tối đa dò sang phải/xuống dưới để tìm ô giá trị của một nhãn.
+  max_value_distance: 4
+
+fields:
+  - name: packageCode
+    type: string
+    parser: text_parser
+    parser_args:
+      pattern: "[A-Za-z0-9][A-Za-z0-9._+-]{2,}"
+      upper: true
+      max_length: 40
+    aliases:
+      - "Tên mã giá OCS"
+      - "Tên mã giá"
+      - "Mã giá OCS"
+      - "Mã gói cước"
+      - "Mã gói"
+      - "Mã CTKM"
+      - "Tên gói cước"
+      - "Tên gói"
+      - "packageCode"
+      - "Package code"
+      - "Product code"
+    regex:
+      - "(?:ten\\s*ma\\s*gia(?:\\s*ocs)?|ma\\s*(?:goi|gia|ctkm)(?:\\s*cuoc)?|package\\s*code|ten\\s*goi(?:\\s*cuoc)?)\\s*[:\\-\\|]*\\s*([A-Za-z][A-Za-z0-9._+-]{2,})"
+
+  - name: registerFee
+    type: number
+    parser: money_parser
+    parser_args:
+      min_value: 0
+    aliases:
+      - "Cước đăng ký"
+      - "Cước đăng ký (chưa VAT)"
+      - "Giá cước đăng ký"
+      - "Phí đăng ký"
+      - "Phí hòa mạng"
+      - "Cước ĐK"
+      - "registerFee"
+      - "Register fee"
+      - "Giá bán"
+    regex:
+      - "(?:cuoc\\s*(?:dang\\s*ky|dk)|phi\\s*(?:dang\\s*ky|hoa\\s*mang)|gia\\s*(?:cuoc\\s*)?dang\\s*ky|register\\s*fee)[^0-9\\n]{0,40}([0-9][0-9.,]*)"
+
+  - name: monthlyFee
+    type: number
+    parser: money_parser
+    parser_args:
+      min_value: 0
+    aliases:
+      - "Cước thuê bao tháng"
+      - "Cước thuê bao"
+      - "Cước TB"
+      - "Cước tháng"
+      - "Phí duy trì tháng"
+      - "Thuê bao tháng"
+      - "monthlyFee"
+      - "Monthly fee"
+    regex:
+      - "(?:cuoc\\s*(?:thue\\s*bao(?:\\s*thang)?|thang)|thue\\s*bao\\s*thang|phi\\s*duy\\s*tri|monthly\\s*fee)[^0-9\\n]{0,40}([0-9][0-9.,]*)"
+
+  - name: onnetMinutes
+    # Cột "nội mạng" trong CTKM thực tế thường là một MÔ TẢ CHÍNH SÁCH
+    # ("MP 20p đầu tiên") chứ không phải số phút thuần - ép về number sẽ
+    # luôn null hoặc (do alias fuzzy-match) lấy nhầm sang cột offnetMinutes.
+    # Dùng text_parser để giữ nguyên mô tả; nơi tiêu thụ JSON tự nhận biết
+    # giá trị dạng "<số>p ..." nếu cần số thuần.
+    type: string
+    parser: text_parser
+    parser_args:
+      max_length: 80
+    aliases:
+      - "TK thoại"
+      - "Tài khoản thoại"
+      - "Thoại nội mạng"
+      - "Gọi nội mạng"
+      - "Phút nội mạng"
+      - "Ưu đãi thoại nội mạng"
+      - "Nội mạng"
+      - "Onnet"
+      - "On-net"
+      - "onnetMinutes"
+    regex:
+      - "(?:tk\\s*thoai|thoai\\s*noi\\s*mang|goi\\s*noi\\s*mang|phut\\s*noi\\s*mang|noi\\s*mang|on-?net)\\s*[:\\-\\|]*\\s*([^\\n,;]{1,60})"
+
+  - name: offnetMinutes
+    type: number
+    parser: int_parser
+    parser_args:
+      min_value: 0
+    aliases:
+      - "Thoại ngoại mạng"
+      - "Gọi ngoại mạng"
+      - "Phút ngoại mạng"
+      - "Ưu đãi thoại ngoại mạng"
+      - "Ngoại mạng"
+      - "Offnet"
+      - "Off-net"
+      - "offnetMinutes"
+    regex:
+      - "(?:thoai\\s*ngoai\\s*mang|goi\\s*ngoai\\s*mang|phut\\s*ngoai\\s*mang|ngoai\\s*mang|off-?net)[^0-9\\n]{0,60}([0-9][0-9.,]*)\\s*(?:p|phut|min)?"
+
+  - name: sms
+    type: number
+    parser: int_parser
+    parser_args:
+      min_value: 0
+    aliases:
+      - "SMS"
+      # Trong biểu mẫu BM.12 cột này có header 2 dòng "SMS / Trong nước"; OCR
+      # hay đánh rơi hẳn dòng "SMS" (đọc thành "SVP", "SMS" dính vào đường kẻ)
+      # nên phải nhận ra được cột chỉ còn dòng thứ hai.
+      - "SMS Trong nước"
+      - "Trong nước"
+      - "Tin nhắn"
+      - "Số SMS"
+      - "SMS nội mạng"
+      - "Ưu đãi SMS"
+      - "smsCount"
+    regex:
+      - "(?:sms|tin\\s*nhan)[^0-9\\n]{0,40}([0-9][0-9.,]*)"
+      - "([0-9][0-9.,]*)\\s*(?:sms|tin\\s*nhan)"
+
+  - name: dataGB
+    type: number
+    parser: gb_parser
+    parser_args:
+      fallback_to_number: true
+    aliases:
+      - "Data"
+      - "Lưu lượng Data đa hướng"
+      - "Lưu lượng data"
+      - "Dung lượng data"
+      - "Data tốc độ cao"
+      - "Ưu đãi data"
+      - "Lưu lượng"
+      - "dataGB"
+    regex:
+      - "(?:data|dung\\s*luong|luu\\s*luong)[^0-9\\n]{0,40}([0-9][0-9.,]*\\s*g\\s?b)"
+
+  - name: youtubeGB
+    type: number
+    parser: gb_parser
+    parser_args:
+      keyword: "Youtube"
+      fallback_to_number: true
+    aliases:
+      - "Youtube"
+      - "Data Youtube"
+      - "Lưu lượng Youtube"
+      - "Ưu đãi Youtube"
+      - "youtubeGB"
+    regex:
+      - "(youtube[^0-9\\n]{0,30}[0-9][0-9.,]*\\s*g\\s?b)"
+
+  - name: spotifyGB
+    type: number
+    parser: gb_parser
+    parser_args:
+      keyword: "Spotify"
+      fallback_to_number: true
+    aliases:
+      - "Spotify"
+      - "Data Spotify"
+      - "Lưu lượng Spotify"
+      - "Ưu đãi Spotify"
+      - "spotifyGB"
+    regex:
+      - "(spotify[^0-9\\n]{0,30}[0-9][0-9.,]*\\s*g\\s?b)"
+
+  - name: cycle
+    type: string
+    parser: cycle_parser
+    parser_args:
+      keywords: ["tháng", "ngày", "tuần", "quý", "năm"]
+    aliases:
+      - "Chu kỳ"
+      - "Chu kỳ gia hạn"
+      - "Chu kỳ cước"
+      - "Chu kỳ khuyến mại"
+      - "Kỳ gia hạn"
+      - "Cycle"
+    regex:
+      - "(?:chu\\s*ky(?:\\s*(?:gia\\s*han|cuoc|khuyen\\s*mai))?|cycle)\\s*[:\\-\\|]*\\s*([^\\n,;]{1,30})"
+
+  - name: allowedPackages
+    type: array
+    parser: list_parser
+    parser_args:
+      separators: [",", ";", "\n", "|"]
+      min_item_length: 2
+    aliases:
+      - "Gói cước chính được đăng kí"
+      - "Gói cước chính được đăng ký"
+      - "Gói cước chính"
+      - "Gói cước được phép đăng ký"
+      - "Gói cước được phép ĐK"
+      - "Gói cước áp dụng"
+      - "Các gói cước áp dụng"
+      - "Gói áp dụng"
+      - "Đối tượng áp dụng"
+      - "allowedPackages"
+      - "Allowed packages"
+    regex:
+      - "(?:goi\\s*cuoc\\s*chinh(?:\\s*duoc\\s*dang\\s*k[iy])?|goi\\s*(?:cuoc\\s*)?(?:duoc\\s*phep(?:\\s*(?:dang\\s*ky|dk))?|ap\\s*dung|dang\\s*ky\\s*duoc)|cac\\s*goi\\s*cuoc|allowed\\s*packages)\\s*[:\\-\\|]*\\s*([^\\n]{2,150})"

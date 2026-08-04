@@ -1,0 +1,23 @@
+# --- Provider OCR mặc định: PP-OCRv5 detector (DB) + VietOCR recognizer -------
+# Bản CPU là đủ, không bắt buộc GPU. Lần chạy đầu tiên sẽ tự tải model về cache.
+# paddleocr 2.x và 3.x có API khác nhau (3.x bỏ det/rec trong ocr(), thay bằng
+# predict()/TextDetection); provider tự dò nên không cần ghim phiên bản.
+paddlepaddle>=2.5
+paddleocr>=2.7
+vietocr>=0.3.13
+torch>=2.0
+
+# --- Provider fallback nhẹ (cần binary tesseract, xem README) -----------------
+pytesseract>=0.3.10
+
+# --- Đọc PDF nhiều trang (tuỳ chọn: chỉ cần khi đầu vào là PDF) ---------------
+pymupdf>=1.23
+
+# --- Xử lý ảnh & schema -------------------------------------------------------
+Pillow>=9.0
+opencv-python>=4.7
+numpy>=1.23
+PyYAML>=6.0
+
+# --- Test ---------------------------------------------------------------------
+pytest>=7.0

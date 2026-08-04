@@ -1,0 +1,54 @@
+[build-system]
+# setuptools >= 77 để dùng được dạng SPDX string của `project.license` (PEP 639).
+# Bản cũ hơn chỉ hiểu dạng bảng `{file = ...}`, còn bản >= 77 lại deprecate dạng
+# bảng đó, nên phải chốt sàn phiên bản thay vì đổi cú pháp.
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ctkm-extractor"
+version = "1.0.0"
+description = "OCR trích xuất chương trình khuyến mại (CTKM) viễn thông từ ảnh bảng biểu ra JSON"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+keywords = ["ocr", "vietnamese", "table-extraction", "paddleocr", "vietocr"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+]
+
+# Chỉ những dependency BẮT BUỘC để chạy được pipeline với provider fallback.
+# Provider mặc định (PaddleOCR + VietOCR) nằm trong extra "paddle" vì rất nặng;
+# thiếu nó chương trình vẫn chạy và tự fallback sang Tesseract.
+dependencies = [
+    "PyYAML>=6.0",
+    "opencv-python>=4.7",
+    "numpy>=1.23",
+    "Pillow>=9.0",
+    "pytesseract>=0.3.10",
+]
+
+[project.optional-dependencies]
+pdf = [
+    "pymupdf>=1.23",
+]
+paddle = [
+    "paddlepaddle>=2.5",
+    "paddleocr>=2.7",
+    "vietocr>=0.3.13",
+    "torch>=2.0",
+]
+test = ["pytest>=7.0"]
+
+[project.scripts]
+ctkm-extractor = "ctkm_extractor.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["ctkm_extractor*"]
+
+[tool.setuptools.package-data]
+ctkm_extractor = ["extraction/schema.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["ctkm_extractor/tests"]
